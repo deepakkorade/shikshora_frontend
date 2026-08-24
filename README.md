@@ -1,0 +1,2 @@
+# shikshora
+School Management Software 
