@@ -1,0 +1,403 @@
+import { useState, useEffect } from 'react';
+import { Search, GraduationCap, Calendar, RefreshCw, UserCheck, ShieldAlert, Award, FileText, CheckCircle2 } from 'lucide-react';
+import api from '../../lib/api';
+import Button from '../../components/ui/Button';
+import Alert from '../../components/ui/Alert';
+
+export default function StudentsModule() {
+  const [students, setStudents] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [years, setYears] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Filters
+  const [search, setSearch] = useState('');
+  const [classFilter, setClassFilter] = useState('');
+  
+  // Profile Detail Panel state
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [profileHistory, setProfileHistory] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [profileTab, setProfileTab] = useState('attendance'); // attendance, fees, exams
+
+  // Promotion/Status modal states
+  const [showPromoteModal, setShowPromoteModal] = useState(false);
+  const [promoteForm, setPromoteForm] = useState({ academicYearId: '', classId: '', sectionId: '', rollNumber: '' });
+  const [sectionsList, setSectionsList] = useState([]);
+
+  const loadStudentsData = async () => {
+    setLoading(true);
+    try {
+      const studs = await api.get('/students');
+      setStudents(studs);
+      
+      const clsData = await api.get('/academics/classes');
+      setClasses(clsData);
+      
+      const yearData = await api.get('/academics/years');
+      setYears(yearData);
+    } catch (err) {
+      setError(err.message || 'Failed to load students.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStudentsData();
+  }, []);
+
+  const handleSelectStudent = async (student) => {
+    setSelectedStudent(student);
+    setHistoryLoading(true);
+    setProfileTab('attendance');
+    try {
+      const data = await api.get(`/students/${student.id}`);
+      setProfileHistory(data.history);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async (studentId, status) => {
+    try {
+      await api.put(`/students/${studentId}/status`, { status });
+      alert(`Student marked as ${status} successfully.`);
+      loadStudentsData();
+      if (selectedStudent && selectedStudent.id === studentId) {
+        setSelectedStudent(prev => ({ ...prev, status }));
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to update student status');
+    }
+  };
+
+  const handleOpenPromote = (student) => {
+    setSelectedStudent(student);
+    setPromoteForm({ academicYearId: '', classId: '', sectionId: '', rollNumber: student.rollNumber || '' });
+    setSectionsList([]);
+    setShowPromoteModal(true);
+  };
+
+  const handlePromoteClassChange = (classId) => {
+    setPromoteForm(prev => ({ ...prev, classId, sectionId: '' }));
+    const targetClass = classes.find(c => c.id === parseInt(classId));
+    setSectionsList(targetClass ? targetClass.Sections || [] : []);
+  };
+
+  const handlePromoteSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post(`/students/${selectedStudent.id}/promote`, promoteForm);
+      alert('Student successfully promoted to new academic class!');
+      setShowPromoteModal(false);
+      loadStudentsData();
+    } catch (err) {
+      alert(err.message || 'Promotion failed.');
+    }
+  };
+
+  // Filter students based on search query and class select filter
+  const filteredStudents = students.filter(s => {
+    const matchesSearch = s.User?.name?.toLowerCase().includes(search.toLowerCase()) || 
+                          s.admissionNumber?.toLowerCase().includes(search.toLowerCase());
+    const matchesClass = classFilter ? s.currentClassId === parseInt(classFilter) : true;
+    return matchesSearch && matchesClass;
+  });
+
+  if (loading) return <div className="text-center py-8">Loading Student Directory...</div>;
+
+  return (
+    <div className="space-y-6 text-left animate-fadeIn">
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold text-foreground font-sans">Student Registry</h2>
+        <p className="text-sm text-text-muted">Manage active student rosters, promote students, and view student history.</p>
+      </div>
+
+      {error && <Alert type="error" message={error} />}
+
+      {/* Main Grid: Directory + Profiles */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        
+        {/* Left Side: Directory List (takes 2 columns if profiles are open, else full width) */}
+        <div className={`space-y-4 ${selectedStudent ? 'xl:col-span-2' : 'xl:col-span-3'}`}>
+          
+          {/* Search Filters */}
+          <div className="flex flex-col sm:flex-row gap-3 bg-card border border-border/60 p-4 rounded-2xl">
+            <div className="relative flex-grow">
+              <Search className="w-4.5 h-4.5 text-text-muted absolute left-3 top-3.5" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by student name or admission number..."
+                className="w-full h-11 pl-10 pr-4 rounded-xl bg-input border border-border/40 text-sm text-foreground focus:outline-none"
+              />
+            </div>
+
+            <select
+              value={classFilter}
+              onChange={(e) => setClassFilter(e.target.value)}
+              className="h-11 px-4 rounded-xl bg-input border border-border/40 text-sm text-foreground focus:outline-none w-44 shrink-0"
+            >
+              <option value="">-- All Classes --</option>
+              {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+
+          {/* Directory Table */}
+          <div className="bg-card border border-border/60 rounded-2xl p-5">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-border/40 text-xs font-bold text-text-muted uppercase tracking-wider bg-card-border/20">
+                    <th className="py-3 px-4">ADM No. / Roll</th>
+                    <th className="py-3 px-4">Student Profile</th>
+                    <th className="py-3 px-4">Class Room</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {filteredStudents.map((s) => (
+                    <tr 
+                      key={s.id} 
+                      className={`hover:bg-card-border/10 cursor-pointer ${selectedStudent?.id === s.id ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}
+                      onClick={() => handleSelectStudent(s)}
+                    >
+                      <td className="py-3 px-4 font-semibold text-foreground">
+                        <span className="block">{s.admissionNumber}</span>
+                        <span className="text-[10px] text-text-muted">Roll: #{s.rollNumber || 'N/A'}</span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="font-semibold text-foreground block">{s.User?.name}</span>
+                        <span className="text-xs text-text-muted">Parent: {s.Parent?.fatherName || 'N/A'}</span>
+                      </td>
+                      <td className="py-3 px-4 font-medium text-foreground">
+                        {s.CurrentClass?.name} - {s.CurrentSection?.name}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                          s.status === 'Active' ? 'bg-green-500/10 text-green-500' :
+                          s.status === 'Alumni' ? 'bg-primary/10 text-primary' :
+                          'bg-red-500/10 text-red-500'
+                        }`}>
+                          {s.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-end gap-1.5">
+                          {s.status === 'Active' && (
+                            <>
+                              <button
+                                onClick={() => handleOpenPromote(s)}
+                                className="p-1 rounded border border-primary/20 bg-primary/5 hover:bg-primary/10 text-primary text-[10px] font-bold px-2 py-1 cursor-pointer flex items-center gap-1"
+                                title="Promote Student"
+                              >
+                                <RefreshCw className="w-3 h-3 animate-spin-slow" /> Promote
+                              </button>
+                              <button
+                                onClick={() => handleUpdateStatus(s.id, 'Alumni')}
+                                className="p-1 rounded border border-border hover:bg-card-border text-text-muted text-[10px] font-bold px-2 py-1 cursor-pointer"
+                              >
+                                Alumni
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredStudents.length === 0 && (
+                    <tr>
+                      <td colSpan="5" className="py-8 text-center text-text-muted">No students found.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side: 360-Degree Profile Panel */}
+        {selectedStudent && (
+          <div className="p-5 rounded-2xl bg-card border border-border/60 space-y-6 animate-slideIn">
+            <div className="flex justify-between items-start border-b border-border/30 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-full bg-primary/15 flex items-center justify-center text-primary font-bold text-lg">
+                  {selectedStudent.User?.name?.charAt(0)}
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-foreground text-sm block">{selectedStudent.User?.name}</h4>
+                  <span className="text-[10px] uppercase font-bold text-text-muted">{selectedStudent.admissionNumber}</span>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedStudent(null)} 
+                className="text-text-muted hover:text-foreground text-sm font-semibold cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Profile Tab selectors */}
+            <div className="flex gap-2 border-b border-border/30 pb-px text-xs">
+              {['attendance', 'fees', 'exams'].map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setProfileTab(tab)}
+                  className={`pb-2 px-1 font-semibold capitalize transition-all border-b-2 cursor-pointer ${
+                    profileTab === tab ? 'border-primary text-primary font-bold' : 'border-transparent text-text-muted'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Contents */}
+            {historyLoading ? (
+              <div className="py-8 text-center text-xs text-text-muted">Loading logs...</div>
+            ) : (
+              <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1 text-xs">
+                
+                {/* Attendance Tab */}
+                {profileTab === 'attendance' && (
+                  <div className="space-y-2.5">
+                    {profileHistory?.attendance?.map((att) => (
+                      <div key={att.id} className="flex justify-between items-center p-3.5 bg-card-border/30 border border-border/40 rounded-xl">
+                        <div>
+                          <span className="font-semibold text-foreground text-xs block">{new Date(att.date).toLocaleDateString()}</span>
+                          {att.remarks && <span className="text-[10px] text-text-muted">{att.remarks}</span>}
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
+                          att.status === 'Present' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'
+                        }`}>
+                          {att.status}
+                        </span>
+                      </div>
+                    ))}
+                    {(!profileHistory?.attendance || profileHistory.attendance.length === 0) && (
+                      <span className="text-text-muted italic block py-4 text-center">No attendance marked.</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Fees Invoices Tab */}
+                {profileTab === 'fees' && (
+                  <div className="space-y-2.5">
+                    {profileHistory?.invoices?.map((inv) => (
+                      <div key={inv.id} className="p-3 bg-card-border/30 border border-border/40 rounded-xl space-y-1">
+                        <div className="flex justify-between">
+                          <span className="font-bold text-foreground">Inv: #{inv.invoiceNumber}</span>
+                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
+                            inv.status === 'Paid' ? 'bg-green-500/10 text-green-500' : 'bg-orange-500/10 text-orange-500'
+                          }`}>
+                            {inv.status}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-[10px] text-text-muted">
+                          <span>Amount: ${inv.totalAmount}</span>
+                          <span>Due: {new Date(inv.dueDate).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {(!profileHistory?.invoices || profileHistory.invoices.length === 0) && (
+                      <span className="text-text-muted italic block py-4 text-center">No invoices generated yet.</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Exams Results Tab */}
+                {profileTab === 'exams' && (
+                  <div className="space-y-2.5">
+                    {profileHistory?.examResults?.map((res) => (
+                      <div key={res.id} className="p-3 bg-card-border/30 border border-border/40 rounded-xl flex justify-between items-center">
+                        <div>
+                          <span className="font-bold text-foreground text-xs block">{res.ExamSubject?.Exam?.name}</span>
+                          <span className="text-[10px] text-text-muted">Grade: {res.grade || 'N/A'}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-bold text-primary block">{res.marksObtained} Marks</span>
+                          <span className="text-[9px] text-text-muted">({res.percentage}%)</span>
+                        </div>
+                      </div>
+                    ))}
+                    {(!profileHistory?.examResults || profileHistory.examResults.length === 0) && (
+                      <span className="text-text-muted italic block py-4 text-center">No exam results recorded.</span>
+                    )}
+                  </div>
+                )}
+
+              </div>
+            )}
+          </div>
+        )}
+
+      </div>
+
+      {/* PROMOTION DIALOG */}
+      {showPromoteModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl max-w-sm w-full p-6 space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold text-foreground">Promote Student Class</h3>
+              <button onClick={() => setShowPromoteModal(false)} className="text-text-muted hover:text-foreground cursor-pointer">×</button>
+            </div>
+            
+            <form onSubmit={handlePromoteSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-text-muted">Academic Term *</label>
+                <select 
+                  value={promoteForm.academicYearId} 
+                  onChange={(e) => setPromoteForm({ ...promoteForm, academicYearId: e.target.value })} 
+                  className="w-full h-11 px-4 rounded-xl bg-input border border-border/50 text-sm text-foreground focus:outline-none"
+                  required
+                >
+                  <option value="">-- Choose Year --</option>
+                  {years.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-text-muted">Promoted Class *</label>
+                <select 
+                  value={promoteForm.classId} 
+                  onChange={(e) => handlePromoteClassChange(e.target.value)} 
+                  className="w-full h-11 px-4 rounded-xl bg-input border border-border/50 text-sm text-foreground focus:outline-none"
+                  required
+                >
+                  <option value="">-- Choose Class --</option>
+                  {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-text-muted">Promoted Section *</label>
+                <select 
+                  value={promoteForm.sectionId} 
+                  onChange={(e) => setPromoteForm({ ...promoteForm, sectionId: e.target.value })} 
+                  className="w-full h-11 px-4 rounded-xl bg-input border border-border/50 text-sm text-foreground focus:outline-none"
+                  disabled={!promoteForm.classId}
+                  required
+                >
+                  <option value="">-- Choose Section --</option>
+                  {sectionsList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+
+              <Input label="New Roll Number" value={promoteForm.rollNumber} onChange={(e) => setPromoteForm({ ...promoteForm, rollNumber: e.target.value })} />
+
+              <Button type="submit">Promote Student</Button>
+            </form>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}

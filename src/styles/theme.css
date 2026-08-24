@@ -1,0 +1,51 @@
+/* Light Theme */
+:root, .theme-light {
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --card: #f8fafc;
+  --border: #e2e8f0;
+  --input: #f8fafc;
+  --text-muted: #64748b;
+  --card-border: #f1f5f9;
+}
+
+/* Dark Theme */
+.theme-dark {
+  --background: #020617;
+  --foreground: #f8fafc;
+  --primary: #6366f1;
+  --primary-hover: #4f46e5;
+  --card: #0f172a;
+  --border: #1e293b;
+  --input: #0f172a;
+  --text-muted: #94a3b8;
+  --card-border: #1e293b;
+}
+
+/* Blue Theme */
+.theme-blue {
+  --background: #0b1e36;
+  --foreground: #f0f9ff;
+  --primary: #0ea5e9;
+  --primary-hover: #0284c7;
+  --card: #0f2d4a;
+  --border: #1e3a8a;
+  --input: #0f2d4a;
+  --text-muted: #38bdf8;
+  --card-border: #1e3a8a;
+}
+
+/* Orange Theme */
+.theme-orange {
+  --background: #1c1106;
+  --foreground: #fff7ed;
+  --primary: #f97316;
+  --primary-hover: #ea580c;
+  --card: #2e1a07;
+  --border: #451a03;
+  --input: #2e1a07;
+  --text-muted: #fdba74;
+  --card-border: #451a03;
+}
