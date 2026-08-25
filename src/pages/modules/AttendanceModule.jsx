@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { CheckSquare, Calendar, CheckCircle2, User, AlertCircle } from 'lucide-react';
 import api from '../../lib/api';
 import Button from '../../components/ui/Button';
+import Skeleton from '../../components/ui/Skeleton';
 
 export default function AttendanceModule() {
   const [classes, setClasses] = useState([]);
@@ -154,7 +155,7 @@ export default function AttendanceModule() {
             </div>
 
             {loading ? (
-              <div className="py-8 text-center text-text-muted">Fetching roster sheet...</div>
+              <Skeleton.Table rows={5} cols={4} />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">

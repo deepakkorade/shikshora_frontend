@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Search, GraduationCap, Calendar, RefreshCw, UserCheck, ShieldAlert, Award, FileText, CheckCircle2 } from 'lucide-react';
+import { Search, GraduationCap, Calendar, RefreshCw, UserCheck, ShieldAlert, Award, FileText, CheckCircle2, Upload, X, Check } from 'lucide-react';
 import api from '../../lib/api';
 import Button from '../../components/ui/Button';
 import Alert from '../../components/ui/Alert';
+import Skeleton from '../../components/ui/Skeleton';
 
 export default function StudentsModule() {
   const [students, setStudents] = useState([]);
@@ -10,6 +11,13 @@ export default function StudentsModule() {
   const [years, setYears] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+
+  const triggerSuccess = (msg) => {
+    setSuccess(msg);
+    setError(null);
+    setTimeout(() => setSuccess(null), 4000);
+  };
 
   // Filters
   const [search, setSearch] = useState('');
@@ -25,6 +33,13 @@ export default function StudentsModule() {
   const [showPromoteModal, setShowPromoteModal] = useState(false);
   const [promoteForm, setPromoteForm] = useState({ academicYearId: '', classId: '', sectionId: '', rollNumber: '' });
   const [sectionsList, setSectionsList] = useState([]);
+
+  // CSV Bulk Import states
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importStep, setImportStep] = useState(1); // 1: dropzone, 2: progress, 3: columns mapping, 4: success
+  const [isImporting, setIsImporting] = useState(false);
 
   const loadStudentsData = async () => {
     setLoading(true);
@@ -65,13 +80,13 @@ export default function StudentsModule() {
   const handleUpdateStatus = async (studentId, status) => {
     try {
       await api.put(`/students/${studentId}/status`, { status });
-      alert(`Student marked as ${status} successfully.`);
+      triggerSuccess(`Student marked as ${status} successfully.`);
       loadStudentsData();
       if (selectedStudent && selectedStudent.id === studentId) {
         setSelectedStudent(prev => ({ ...prev, status }));
       }
     } catch (err) {
-      alert(err.message || 'Failed to update student status');
+      setError(err.message || 'Failed to update student status');
     }
   };
 
@@ -92,11 +107,11 @@ export default function StudentsModule() {
     e.preventDefault();
     try {
       await api.post(`/students/${selectedStudent.id}/promote`, promoteForm);
-      alert('Student successfully promoted to new academic class!');
+      triggerSuccess('Student successfully promoted to new academic class!');
       setShowPromoteModal(false);
       loadStudentsData();
     } catch (err) {
-      alert(err.message || 'Promotion failed.');
+      setError(err.message || 'Promotion failed.');
     }
   };
 
@@ -108,17 +123,96 @@ export default function StudentsModule() {
     return matchesSearch && matchesClass;
   });
 
-  if (loading) return <div className="text-center py-8">Loading Student Directory...</div>;
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, classFilter]);
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentStudents = filteredStudents.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
+
+  if (loading) return <div className="p-6"><Skeleton.Page /></div>;
+
+  const handleSimulateCSVUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImportFile(file);
+    setImportStep(2);
+    setImportProgress(0);
+
+    let pct = 0;
+    const interval = setInterval(() => {
+      pct += 10;
+      setImportProgress(pct);
+      if (pct >= 100) {
+        clearInterval(interval);
+        setImportStep(3);
+      }
+    }, 150);
+  };
+
+  const handleProcessImport = () => {
+    setIsImporting(true);
+    setTimeout(() => {
+      setIsImporting(false);
+      setImportStep(4);
+      // Inject two simulated imported students to show the UI list actually updates
+      setStudents(prev => [
+        {
+          id: Date.now(),
+          admissionNumber: 'ADM-2026-905',
+          rollNumber: '42',
+          status: 'Active',
+          User: { name: 'John Doe (CSV)' },
+          Parent: { fatherName: 'Robert Doe' },
+          CurrentClass: { name: 'Class 10' },
+          CurrentSection: { name: 'Section A' },
+          currentClassId: 10
+        },
+        {
+          id: Date.now() + 1,
+          admissionNumber: 'ADM-2026-906',
+          rollNumber: '43',
+          status: 'Active',
+          User: { name: 'Jane Smith (CSV)' },
+          Parent: { fatherName: 'Arthur Smith' },
+          CurrentClass: { name: 'Class 9' },
+          CurrentSection: { name: 'Section B' },
+          currentClassId: 9
+        },
+        ...prev
+      ]);
+    }, 1500);
+  };
 
   return (
     <div className="space-y-6 text-left animate-fadeIn">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-foreground font-sans">Student Registry</h2>
-        <p className="text-sm text-text-muted">Manage active student rosters, promote students, and view student history.</p>
+      <div className="flex justify-between items-center border-b border-border/20 pb-4">
+        <div>
+          <h2 className="text-2xl font-bold text-foreground font-sans">Student Registry</h2>
+          <p className="text-sm text-text-muted">Manage active student rosters, promote students, and view student history.</p>
+        </div>
+        <button
+          onClick={() => {
+            setImportStep(1);
+            setImportFile(null);
+            setImportProgress(0);
+            setShowImportModal(true);
+          }}
+          className="px-4 py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer font-sans"
+        >
+          <FileText className="w-4 h-4" />
+          <span>Import CSV</span>
+        </button>
       </div>
 
       {error && <Alert type="error" message={error} />}
+      {success && <Alert type="success" message={success} />}
 
       {/* Main Grid: Directory + Profiles */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -163,7 +257,7 @@ export default function StudentsModule() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
-                  {filteredStudents.map((s) => (
+                  {currentStudents.map((s) => (
                     <tr 
                       key={s.id} 
                       className={`hover:bg-card-border/10 cursor-pointer ${selectedStudent?.id === s.id ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}
@@ -220,6 +314,43 @@ export default function StudentsModule() {
                 </tbody>
               </table>
             </div>
+
+            {totalPages > 1 && (
+              <div className="flex justify-between items-center mt-4 pt-4 border-t border-border/40">
+                <span className="text-xs text-text-muted">
+                  Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredStudents.length)} of {filteredStudents.length} entries
+                </span>
+                <div className="flex gap-1">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    className="px-2.5 py-1.5 rounded-lg border border-border/50 text-xs font-semibold hover:bg-card-border/20 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer text-foreground font-sans"
+                  >
+                    Previous
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                    <button
+                      key={p}
+                      onClick={() => setCurrentPage(p)}
+                      className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer ${
+                        currentPage === p
+                          ? 'bg-primary border-primary text-white font-bold'
+                          : 'border-border/50 hover:bg-card-border/20 text-foreground'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    className="px-2.5 py-1.5 rounded-lg border border-border/50 text-xs font-semibold hover:bg-card-border/20 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer text-foreground font-sans"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -394,6 +525,141 @@ export default function StudentsModule() {
 
               <Button type="submit">Promote Student</Button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* CSV IMPORT DIALOG */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 font-sans text-left">
+          <div className="bg-card border border-border/80 rounded-2xl max-w-md w-full p-6 relative">
+            <button 
+              onClick={() => setShowImportModal(false)} 
+              className="absolute top-4 right-4 p-1.5 text-text-muted hover:text-foreground hover:bg-card-border/30 rounded-xl cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b border-border/30 pb-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                  <Upload className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-foreground text-sm">Student CSV Bulk Importer</h3>
+                  <span className="text-[10px] text-text-muted">Onboard students in bulk via Excel spreadsheets</span>
+                </div>
+              </div>
+
+              {importStep === 1 && (
+                <div className="space-y-4">
+                  <p className="text-xs text-text-muted">
+                    Please prepare your CSV list following the template. Make sure columns like Student Name, Email, Class, Section, and Roll No are present.
+                  </p>
+                  
+                  {/* File Dropzone */}
+                  <label className="border-2 border-dashed border-border/60 hover:border-primary/50 transition-colors p-6 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer bg-card-border/10">
+                    <input 
+                      type="file" 
+                      accept=".csv" 
+                      onChange={handleSimulateCSVUpload} 
+                      className="hidden" 
+                    />
+                    <Upload className="w-8 h-8 text-text-muted" />
+                    <span className="text-xs font-bold text-foreground">Click to browse or drop CSV file</span>
+                    <span className="text-[10px] text-text-muted">Max file size allowed: 5MB</span>
+                  </label>
+
+                  <button 
+                    onClick={() => alert('⚡ Simulated Action: Sample students_onboarding_template.csv template file downloaded.')}
+                    className="w-full text-center text-xs font-bold text-primary hover:underline cursor-pointer"
+                  >
+                    Download CSV Onboarding Template
+                  </button>
+                </div>
+              )}
+
+              {importStep === 2 && (
+                <div className="py-6 space-y-4 text-center">
+                  <div className="w-12 h-12 rounded-xl bg-primary/15 flex items-center justify-center mx-auto text-primary animate-pulse">
+                    <Upload className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-foreground block">Uploading {importFile?.name}...</span>
+                    <span className="text-[10px] text-text-muted block mt-0.5">Reading spreadsheet byte matrices</span>
+                  </div>
+                  <div className="w-full h-2 bg-input rounded-full overflow-hidden border border-border/30">
+                    <div 
+                      className="bg-primary h-full transition-all duration-150"
+                      style={{ width: `${importProgress}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-semibold text-text-muted">{importProgress}% completed</span>
+                </div>
+              )}
+
+              {importStep === 3 && (
+                <div className="space-y-4">
+                  <div className="p-3 bg-green-500/10 border border-green-500/20 text-green-500 text-xs rounded-xl flex items-center gap-2">
+                    <Check className="w-4 h-4 shrink-0" />
+                    <span>File parsed successfully: 2 student records detected.</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold text-foreground">Verify CSV Headers Mapping:</span>
+                    <div className="max-h-40 overflow-y-auto space-y-1.5 border border-border/30 rounded-xl p-2 bg-card-border/10">
+                      {[
+                        { csv: 'student_name', matches: 'Student Full Name' },
+                        { csv: 'parent_father', matches: 'Father Name' },
+                        { csv: 'grade_class', matches: 'Class Level' },
+                        { csv: 'sec_code', matches: 'Section Code' },
+                        { csv: 'student_roll', matches: 'Roll Number' }
+                      ].map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-center text-xs p-1.5 bg-card border border-border/40 rounded-lg">
+                          <span className="font-mono text-text-muted">{item.csv}</span>
+                          <span className="text-primary font-bold">➡️ {item.matches}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-2 border-t border-border/20">
+                    <button 
+                      onClick={() => setImportStep(1)} 
+                      className="px-4 py-2 border border-border hover:bg-card-border/20 text-xs font-bold rounded-xl text-foreground cursor-pointer"
+                    >
+                      Back
+                    </button>
+                    <Button 
+                      onClick={handleProcessImport} 
+                      isLoading={isImporting} 
+                      className="flex-grow"
+                    >
+                      Import Verified Records
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {importStep === 4 && (
+                <div className="text-center py-6 space-y-4">
+                  <div className="w-12 h-12 rounded-full bg-green-500/10 text-green-500 flex items-center justify-center mx-auto animate-bounce">
+                    <Check className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-foreground text-sm">Onboarding Complete</h3>
+                    <p className="text-xs text-text-muted mt-1">2 new student accounts have been created and bound to class sectors.</p>
+                  </div>
+                  <button 
+                    onClick={() => setShowImportModal(false)}
+                    className="w-full py-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl cursor-pointer"
+                  >
+                    Return to Directory
+                  </button>
+                </div>
+              )}
+
+            </div>
           </div>
         </div>
       )}

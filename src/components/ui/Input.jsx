@@ -27,9 +27,9 @@ export default function Input({
   const computedType = isPasswordField && showPassword ? 'text' : type
 
   return (
-    <div className="space-y-2 text-left">
+    <div className="space-y-1.5 text-left">
       {label && (
-        <label className="text-sm font-medium text-slate-300 block" htmlFor={id}>
+        <label className="text-xs font-semibold text-foreground/90 block select-none" htmlFor={id}>
           {label}
         </label>
       )}

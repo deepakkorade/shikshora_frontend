@@ -8,6 +8,7 @@ import api from '../../lib/api';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Alert from '../../components/ui/Alert';
+import Skeleton from '../../components/ui/Skeleton';
 
 export default function SettingsModule() {
   const [schools, setSchools] = useState([]);
@@ -27,7 +28,7 @@ export default function SettingsModule() {
   const [drawerItem, setDrawerItem] = useState(null);
 
   // Form Fields State
-  const [schoolForm, setSchoolForm] = useState({ name: '', email: '', phone: '', address: '', city: '', country: 'USA', regNumber: '', type: 'K-12' });
+  const [schoolForm, setSchoolForm] = useState({ name: '', email: '', phone: '', address: '', city: '', state: '', country: 'USA', regNumber: '', type: 'K-12' });
   const [branchForm, setBranchForm] = useState({ schoolId: '', name: '', code: '', email: '', phone: '', address: '', city: '' });
   const [userForm, setUserForm] = useState({ schoolId: '', branchId: '', name: '', email: '', phone: '', password: '', role: 'Teacher' });
 
@@ -93,7 +94,7 @@ export default function SettingsModule() {
   const closeDrawer = () => {
     setDrawerMode(null);
     setDrawerItem(null);
-    setSchoolForm({ name: '', email: '', phone: '', address: '', city: '', country: 'USA', regNumber: '', type: 'K-12' });
+    setSchoolForm({ name: '', email: '', phone: '', address: '', city: '', state: '', country: 'USA', regNumber: '', type: 'K-12' });
     setBranchForm({ schoolId: '', name: '', code: '', email: '', phone: '', address: '', city: '' });
     setUserForm({ schoolId: '', branchId: '', name: '', email: '', phone: '', password: '', role: 'Teacher' });
   };
@@ -136,15 +137,17 @@ export default function SettingsModule() {
         await api.post('/auth/register-school', {
           schoolName: schoolForm.name,
           regNumber: schoolForm.regNumber,
-          schoolType: schoolForm.type,
+          type: schoolForm.type,
           email: schoolForm.email,
           phone: schoolForm.phone,
           address: schoolForm.address,
           city: schoolForm.city,
+          state: schoolForm.state || 'N/A',
           country: schoolForm.country,
+          adminName: 'School Admin',
           adminEmail: `admin_${Date.now()}@shikshora.com`,
           adminPassword: 'admin123',
-          subscriptionPlan: 'Starter'
+          subscriptionPlanId: 1
         });
         triggerSuccess('New school tenant registered successfully.');
       }
@@ -222,14 +225,7 @@ export default function SettingsModule() {
   const activeBranches = branches.filter(b => b.schoolId === selectedSchool?.id);
   const activeUsers = users.filter(u => u.branchId === selectedBranch?.id);
 
-  if (loading && schools.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 space-y-4">
-        <RefreshCw className="w-10 h-10 text-primary animate-spin" />
-        <p className="text-sm text-text-muted">Loading directory dashboard...</p>
-      </div>
-    );
-  }
+  if (loading && schools.length === 0) return <div className="p-6"><Skeleton.Page /></div>;
 
   return (
     <div className="space-y-6 text-left animate-fadeIn font-sans h-[calc(100vh-140px)] flex flex-col relative overflow-hidden">
@@ -510,8 +506,9 @@ export default function SettingsModule() {
                       <Input label="Phone Contact *" value={schoolForm.phone} onChange={(e) => setSchoolForm({ ...schoolForm, phone: e.target.value })} required />
                     </div>
                     <Input label="Street Address" value={schoolForm.address} onChange={(e) => setSchoolForm({ ...schoolForm, address: e.target.value })} />
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-3 gap-4">
                       <Input label="City" value={schoolForm.city} onChange={(e) => setSchoolForm({ ...schoolForm, city: e.target.value })} />
+                      <Input label="State" value={schoolForm.state || ''} onChange={(e) => setSchoolForm({ ...schoolForm, state: e.target.value })} />
                       <Input label="Country" value={schoolForm.country} onChange={(e) => setSchoolForm({ ...schoolForm, country: e.target.value })} />
                     </div>
                     <Button type="submit" className="w-full mt-4">Save School</Button>

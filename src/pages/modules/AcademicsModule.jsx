@@ -3,6 +3,7 @@ import { BookOpen, Calendar, Clock, AlertTriangle, Plus, Check, MapPin } from 'l
 import api from '../../lib/api';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import Alert from '../../components/ui/Alert';
 
 export default function AcademicsModule() {
   const [activeSubTab, setActiveSubTab] = useState('classes'); // classes, subjects, timetable
@@ -10,6 +11,14 @@ export default function AcademicsModule() {
   const [subjects, setSubjects] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [years, setYears] = useState([]);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+
+  const triggerSuccess = (msg) => {
+    setSuccess(msg);
+    setError(null);
+    setTimeout(() => setSuccess(null), 4000);
+  };
   
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSection, setSelectedSection] = useState('');
@@ -72,9 +81,10 @@ export default function AcademicsModule() {
       await api.post('/academics/classes', newClass);
       setShowClassModal(false);
       setNewClass({ name: '', code: '' });
+      triggerSuccess('Class created successfully.');
       loadAcademicsData();
     } catch (err) {
-      alert(err.message || 'Failed to create class');
+      setError(err.message || 'Failed to create class');
     }
   };
 
@@ -84,9 +94,10 @@ export default function AcademicsModule() {
       await api.post(`/academics/classes/${selectedClass}/sections`, newSection);
       setShowSectionModal(false);
       setNewSection({ name: '', capacity: 40 });
+      triggerSuccess('Section created successfully.');
       loadAcademicsData();
     } catch (err) {
-      alert(err.message || 'Failed to create section');
+      setError(err.message || 'Failed to create section');
     }
   };
 
@@ -96,9 +107,10 @@ export default function AcademicsModule() {
       await api.post('/academics/subjects', newSubject);
       setShowSubjectModal(false);
       setNewSubject({ name: '', code: '', type: 'Theory' });
+      triggerSuccess('Subject created successfully.');
       loadAcademicsData();
     } catch (err) {
-      alert(err.message || 'Failed to create subject');
+      setError(err.message || 'Failed to create subject');
     }
   };
 
@@ -118,6 +130,7 @@ export default function AcademicsModule() {
       setNewSchedule({
         subjectId: '', teacherId: '', dayOfWeek: 'Monday', periodNumber: 1, startTime: '09:00', endTime: '09:45', roomNumber: ''
       });
+      triggerSuccess('Timetable scheduled successfully.');
       loadTimetable();
     } catch (err) {
       // Check for conflict (409) or bad request
@@ -139,6 +152,9 @@ export default function AcademicsModule() {
           <p className="text-sm text-text-muted">Manage academic structures, semesters, subject catalogs, and timetable lecture plans.</p>
         </div>
       </div>
+
+      {error && <Alert type="error" message={error} />}
+      {success && <Alert type="success" message={success} />}
 
       {/* Navigation Sub Tabs */}
       <div className="flex gap-2 border-b border-border/40 pb-px">
@@ -163,7 +179,7 @@ export default function AcademicsModule() {
             <Button onClick={() => setShowClassModal(true)} size="sm" className="flex items-center gap-1">
               <Plus className="w-4 h-4" /> Add Class
             </Button>
-          </div>
+          </div>  
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {classes.map((c) => (

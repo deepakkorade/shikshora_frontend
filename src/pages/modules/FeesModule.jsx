@@ -4,6 +4,7 @@ import api from '../../lib/api';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Alert from '../../components/ui/Alert';
+import Skeleton from '../../components/ui/Skeleton';
 
 export default function FeesModule() {
   const [activeSubTab, setActiveSubTab] = useState('invoices'); // invoices, structures
@@ -12,6 +13,13 @@ export default function FeesModule() {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+
+  const triggerSuccess = (msg) => {
+    setSuccess(msg);
+    setError(null);
+    setTimeout(() => setSuccess(null), 4000);
+  };
 
   // Forms Modals
   const [showStructureModal, setShowStructureModal] = useState(false);
@@ -52,9 +60,10 @@ export default function FeesModule() {
       await api.post('/fees/structures', newStructure);
       setShowStructureModal(false);
       setNewStructure({ name: '', amount: '', feeType: 'Tuition', classId: '' });
+      triggerSuccess('Fee structure created successfully.');
       loadFeesData();
     } catch (err) {
-      alert(err.message || 'Failed to create fee structure');
+      setError(err.message || 'Failed to create fee structure');
     }
   };
 
@@ -62,12 +71,12 @@ export default function FeesModule() {
     e.preventDefault();
     try {
       const res = await api.post('/fees/invoices/generate', generateForm);
-      alert(res.message || 'Invoices generated successfully.');
+      triggerSuccess(res.message || 'Invoices generated successfully.');
       setShowGenerateModal(false);
       setGenerateForm({ classId: '', feeStructureId: '', dueDate: '' });
       loadFeesData();
     } catch (err) {
-      alert(err.message || 'Failed to generate class invoices');
+      setError(err.message || 'Failed to generate class invoices');
     }
   };
 
@@ -89,15 +98,27 @@ export default function FeesModule() {
         invoiceId: selectedInvoice.id,
         ...payForm
       });
-      alert('Fee transaction completed successfully! Receipt generated.');
+      triggerSuccess('Fee transaction completed successfully! Receipt generated.');
       setShowPayModal(false);
       loadFeesData();
     } catch (err) {
-      alert(err.message || 'Payment failure');
+      setError(err.message || 'Payment failure');
     }
   };
 
-  if (loading) return <div className="text-center py-8">Loading accounting database...</div>;
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeSubTab]);
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentInvoices = invoices.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(invoices.length / itemsPerPage);
+
+  if (loading) return <div className="p-6"><Skeleton.Page /></div>;
 
   return (
     <div className="space-y-6 text-left animate-fadeIn">
@@ -118,6 +139,7 @@ export default function FeesModule() {
       </div>
 
       {error && <Alert type="error" message={error} />}
+      {success && <Alert type="success" message={success} />}
 
       {/* Tabs selectors */}
       <div className="flex gap-2 border-b border-border/40 pb-px">
@@ -150,7 +172,7 @@ export default function FeesModule() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
-                {invoices.map((inv) => {
+                {currentInvoices.map((inv) => {
                   const outstanding = parseFloat(inv.totalAmount) - parseFloat(inv.paidAmount);
                   return (
                     <tr key={inv.id} className="hover:bg-card-border/5">
@@ -196,6 +218,43 @@ export default function FeesModule() {
               </tbody>
             </table>
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex justify-between items-center mt-4 pt-4 border-t border-border/40">
+              <span className="text-xs text-text-muted">
+                Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, invoices.length)} of {invoices.length} entries
+              </span>
+              <div className="flex gap-1">
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  className="px-2.5 py-1.5 rounded-lg border border-border/50 text-xs font-semibold hover:bg-card-border/20 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer text-foreground font-sans"
+                >
+                  Previous
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setCurrentPage(p)}
+                    className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer ${
+                      currentPage === p
+                        ? 'bg-primary border-primary text-white font-bold'
+                        : 'border-border/50 hover:bg-card-border/20 text-foreground'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <button
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  className="px-2.5 py-1.5 rounded-lg border border-border/50 text-xs font-semibold hover:bg-card-border/20 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer text-foreground font-sans"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

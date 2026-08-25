@@ -1,6 +1,26 @@
 import { useState, useEffect } from 'react';
 import { Users, GraduationCap, DollarSign, Calendar, BookOpen, AlertCircle, TrendingUp, Clock } from 'lucide-react';
 import api from '../../lib/api';
+import Skeleton from '../../components/ui/Skeleton';
+
+// Animated count-up hook
+function useCountUp(target, duration = 1200) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!target) return;
+    let start = null;
+    const step = (ts) => {
+      if (!start) start = ts;
+      const progress = Math.min((ts - start) / duration, 1);
+      // easeOut cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.floor(eased * target));
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [target, duration]);
+  return count;
+}
 
 export default function SchoolAdminDashboard() {
   const [stats, setStats] = useState({
@@ -48,6 +68,16 @@ export default function SchoolAdminDashboard() {
     fetchDashboard();
   }, []);
 
+  if (loading) return <Skeleton.Page />;
+
+  const animStudents  = useCountUp(stats.totalStudents);
+  const animTeachers  = useCountUp(stats.totalTeachers);
+  const animStaff     = useCountUp(stats.totalStaff);
+  const animFees      = useCountUp(stats.pendingFees);
+  const animPresent   = useCountUp(stats.attendanceToday.present);
+  const animAbsent    = useCountUp(stats.attendanceToday.absent);
+  const animCollected = useCountUp(stats.feesCollectedToday);
+
   return (
     <div className="space-y-8 animate-fadeIn text-left">
       {/* Header */}
@@ -68,7 +98,7 @@ export default function SchoolAdminDashboard() {
             </div>
           </div>
           <div className="mt-3">
-            <span className="text-3xl font-black text-foreground">{stats.totalStudents}</span>
+            <span className="text-3xl font-black text-foreground tabular-nums">{animStudents}</span>
             <span className="text-xs text-green-500 font-semibold block mt-1">Active Academic Term</span>
           </div>
         </div>
@@ -82,8 +112,8 @@ export default function SchoolAdminDashboard() {
             </div>
           </div>
           <div className="mt-3">
-            <span className="text-3xl font-black text-foreground">{stats.totalTeachers}</span>
-            <span className="text-xs text-text-muted block mt-1">{stats.totalStaff} Support Staff</span>
+            <span className="text-3xl font-black text-foreground tabular-nums">{animTeachers}</span>
+            <span className="text-xs text-text-muted block mt-1">{animStaff} Support Staff</span>
           </div>
         </div>
 
@@ -98,7 +128,7 @@ export default function SchoolAdminDashboard() {
           <div className="mt-3">
             <span className="text-3xl font-black text-foreground">{stats.attendanceToday.rate}</span>
             <span className="text-xs text-green-500 font-semibold block mt-1">
-              {stats.attendanceToday.present} Present | {stats.attendanceToday.absent} Absent
+              {animPresent} Present | {animAbsent} Absent
             </span>
           </div>
         </div>
@@ -112,9 +142,9 @@ export default function SchoolAdminDashboard() {
             </div>
           </div>
           <div className="mt-3">
-            <span className="text-3xl font-black text-foreground">${stats.pendingFees}</span>
+            <span className="text-3xl font-black text-foreground tabular-nums">${animFees.toLocaleString()}</span>
             <span className="text-xs text-orange-500 font-semibold block mt-1">
-              Today: +${stats.feesCollectedToday} Collected
+              Today: +${animCollected} Collected
             </span>
           </div>
         </div>

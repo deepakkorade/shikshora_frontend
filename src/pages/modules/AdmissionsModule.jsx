@@ -4,12 +4,20 @@ import api from '../../lib/api';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Alert from '../../components/ui/Alert';
+import Skeleton from '../../components/ui/Skeleton';
 
 export default function AdmissionsModule() {
   const [leads, setLeads] = useState([]);
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+
+  const triggerSuccess = (msg) => {
+    setSuccess(msg);
+    setError(null);
+    setTimeout(() => setSuccess(null), 4000);
+  };
   
   // Modals / Actions states
   const [showAddForm, setShowAddForm] = useState(false);
@@ -62,9 +70,10 @@ export default function AdmissionsModule() {
         firstName: '', lastName: '', dob: '', gender: 'Male', classId: '',
         fatherName: '', motherName: '', email: '', mobile: '', address: '', occupation: '', comments: ''
       });
+      triggerSuccess('Lead profile created successfully.');
       loadAdmissionsData();
     } catch (err) {
-      alert(err.message || 'Failed to create lead');
+      setError(err.message || 'Failed to create lead');
     }
   };
 
@@ -77,9 +86,10 @@ export default function AdmissionsModule() {
         contactDate: new Date().toISOString().split('T')[0],
         feedback: '', nextFollowUpDate: '', status: 'Follow-up'
       });
+      triggerSuccess('Follow-up logged successfully.');
       loadAdmissionsData();
     } catch (err) {
-      alert(err.message || 'Failed to log follow-up');
+      setError(err.message || 'Failed to log follow-up');
     }
   };
 
@@ -96,15 +106,23 @@ export default function AdmissionsModule() {
     e.preventDefault();
     try {
       const res = await api.post(`/admissions/${selectedLead.id}/convert`, convertData);
-      alert(res.message || 'Lead successfully converted to Student!');
+      triggerSuccess(res.message || 'Lead successfully converted to Student!');
       setShowConvertForm(false);
       loadAdmissionsData();
     } catch (err) {
-      alert(err.message || 'Failed to convert lead');
+      setError(err.message || 'Failed to convert lead');
     }
   };
 
-  if (loading) return <div className="text-center py-8">Loading admissions data...</div>;
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentLeads = leads.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(leads.length / itemsPerPage);
+
+  if (loading) return <div className="p-6"><Skeleton.Page /></div>;
 
   return (
     <div className="space-y-6 text-left">
@@ -120,6 +138,7 @@ export default function AdmissionsModule() {
       </div>
 
       {error && <Alert type="error" message={error} />}
+      {success && <Alert type="success" message={success} />}
 
       {/* Leads List */}
       <div className="bg-card border border-border/60 rounded-2xl p-5">
@@ -136,7 +155,7 @@ export default function AdmissionsModule() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">
-              {leads.map((lead) => (
+              {currentLeads.map((lead) => (
                 <tr key={lead.id} className="hover:bg-card-border/10">
                   <td className="py-3 px-4">
                     <span className="font-semibold text-foreground block">{lead.firstName} {lead.lastName}</span>
@@ -190,6 +209,43 @@ export default function AdmissionsModule() {
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex justify-between items-center mt-4 pt-4 border-t border-border/40">
+            <span className="text-xs text-text-muted">
+              Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, leads.length)} of {leads.length} entries
+            </span>
+            <div className="flex gap-1">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                className="px-2.5 py-1.5 rounded-lg border border-border/50 text-xs font-semibold hover:bg-card-border/20 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer text-foreground font-sans"
+              >
+                Previous
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setCurrentPage(p)}
+                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer ${
+                    currentPage === p
+                      ? 'bg-primary border-primary text-white font-bold'
+                      : 'border-border/50 hover:bg-card-border/20 text-foreground'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                className="px-2.5 py-1.5 rounded-lg border border-border/50 text-xs font-semibold hover:bg-card-border/20 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer text-foreground font-sans"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* MODAL 1: ADD NEW ENQUIRY */}
