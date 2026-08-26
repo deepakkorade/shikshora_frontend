@@ -13,6 +13,7 @@ import NotFound from './pages/NotFound'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
+import TestWorker from './pages/TestWorker'
 
 // ─── Session / Logout Toast ────────────────────────────────────────────────
 function LogoutToast({ reason, onDismiss }) {
@@ -246,6 +247,9 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        {/* Backend Worker connectivity tester */}
+        <Route path="/test-worker" element={<TestWorker />} />
 
         {/* Catch-all 404 Route */}
         <Route

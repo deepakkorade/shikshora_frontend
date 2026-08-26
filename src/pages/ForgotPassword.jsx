@@ -233,15 +233,10 @@ export default function ForgotPassword({ onNavigate }) {
             <p className="text-sm text-text-muted">Choose a strong password for your account.</p>
           </div>
 
-          <div className="relative">
-            <Input label="New Password *" type={showPass ? 'text' : 'password'}
-              value={newPass} onChange={(e) => setNewPass(e.target.value)}
-              placeholder="Min 8 characters" icon={Lock} />
-            <button type="button" onClick={() => setShowPass(v => !v)}
-              className="absolute right-3 bottom-3 text-text-muted hover:text-foreground cursor-pointer" tabIndex={-1}>
-              {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
+          <Input label="New Password *" type="password"
+            value={newPass} onChange={(e) => setNewPass(e.target.value)}
+            placeholder="Min 8 characters" icon={Lock} />
+
 
           <Input label="Confirm Password *" type="password"
             value={confirmPass} onChange={(e) => setConfirmPass(e.target.value)}

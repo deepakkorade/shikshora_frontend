@@ -304,21 +304,13 @@ export default function Register({ onNavigate, onRegisterSuccess }) {
 
           {/* Password with strength bar */}
           <div>
-            <div className="relative">
-              <Input
-                label="Password * (min 8 chars, 1 uppercase, 1 number)"
-                type={showPass ? 'text' : 'password'}
-                value={adminData.adminPassword} onChange={setAdmin('adminPassword')}
-                placeholder="••••••••" icon={Lock}
-              />
-              <button
-                type="button" onClick={() => setShowPass(v => !v)}
-                className="absolute right-3 bottom-3 text-text-muted hover:text-foreground transition-colors cursor-pointer"
-                tabIndex={-1}
-              >
-                {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
+            <Input
+              label="Password * (min 8 chars, 1 uppercase, 1 number)"
+              type="password"
+              value={adminData.adminPassword} onChange={setAdmin('adminPassword')}
+              placeholder="••••••••" icon={Lock}
+            />
+
             {adminData.adminPassword && pwStrength && (
               <div className="mt-2 space-y-1">
                 <div className="h-1.5 w-full bg-border/30 rounded-full overflow-hidden">

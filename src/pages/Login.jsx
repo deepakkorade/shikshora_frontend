@@ -137,27 +137,17 @@ export default function Login({ onNavigate, onLoginSuccess, sessionExpired }) {
             </button>
           </div>
 
-          <div className="relative">
-            <Input
-              id="login-password"
-              type={showPass ? 'text' : 'password'}
-              required
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); setFieldErrors(p => ({ ...p, password: '' })); }}
-              placeholder="••••••••"
-              disabled={isLoading}
-              icon={Lock}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPass(v => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-foreground transition-colors cursor-pointer"
-              tabIndex={-1}
-              aria-label={showPass ? 'Hide password' : 'Show password'}
-            >
-              {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
+          <Input
+            id="login-password"
+            type="password"
+            required
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setFieldErrors(p => ({ ...p, password: '' })); }}
+            placeholder="••••••••"
+            disabled={isLoading}
+            icon={Lock}
+          />
+
           {fieldErrors.password && (
             <p className="text-xs text-rose-400 font-medium pl-1">{fieldErrors.password}</p>
           )}
